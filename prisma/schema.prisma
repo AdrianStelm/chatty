@@ -1,12 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -14,42 +7,138 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role{
+enum Role {
   USER
   ADMIN
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  username  String   @unique
-  email     String   @unique
-  password  String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  posts     Post[]   
-  comments  Comment[] 
-  role Role @default(USER)
+  id                   String         @id @default(uuid()) @db.Uuid
+  email                String         @unique()
+  password             String
+  avatar               String?
+  username             String         @unique()
+  createdAt            DateTime       @default(now())
+  role                 Role           @default(USER)
+  refreshToken         String?
+  refreshTokenExpiry   DateTime?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  pendingEmail         String?
+  emailChangeToken     String?
+  emailChangeExpires   DateTime?
+  posts                Post[]
+  comments             Comment[]
+  chatMembers          ChatMember[]
+  messagesSent         Message[]
+  MessageRead          MessageRead[]
+  Notification         Notification[]
+  followers            Follow[]       @relation("Followers")
+  following            Follow[]       @relation("Following")
+  Follow               Follow[]
 }
 
 model Post {
-  id        Int       @id @default(autoincrement())
+  id        String      @id @default(uuid()) @db.Uuid
   title     String
   content   String
-  likes     Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  author    User      @relation(fields: [authorId], references: [id])
-  authorId  Int
-  comments  Comment[] 
+  likes     Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  author    User        @relation(fields: [authorId], references: [id])
+  authorId  String      @db.Uuid
+  comments  Comment[]
+  PostMedia PostMedia[]
+}
+
+model PostMedia {
+  id        String   @id @default(uuid()) @db.Uuid
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    String   @db.Uuid
+  type      String
+  url       String
+  createdAt DateTime @default(now())
 }
 
 model Comment {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(uuid()) @db.Uuid
   content   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   post      Post     @relation(fields: [postId], references: [id])
-  postId    Int
+  postId    String   @db.Uuid
   author    User     @relation(fields: [authorId], references: [id])
-  authorId  Int
+  authorId  String   @db.Uuid
+}
+
+model Chat {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String?
+  isGroup   Boolean      @default(false)
+  members   ChatMember[]
+  messages  Message[]
+  createdAt DateTime     @default(now())
+}
+
+model ChatMember {
+  id       String   @id @default(uuid()) @db.Uuid
+  user     User     @relation(fields: [userId], references: [id])
+  userId   String   @db.Uuid
+  chat     Chat     @relation(fields: [chatId], references: [id])
+  chatId   String   @db.Uuid
+  joinedAt DateTime @default(now())
+}
+
+model Message {
+  id        String         @id @default(uuid()) @db.Uuid
+  chat      Chat           @relation(fields: [chatId], references: [id])
+  chatId    String         @db.Uuid
+  sender    User           @relation(fields: [senderId], references: [id])
+  senderId  String         @db.Uuid
+  text      String?
+  createdAt DateTime       @default(now())
+  readBy    MessageRead[]
+  media     MessageMedia[]
+}
+
+model MessageRead {
+  id        String   @id @default(uuid()) @db.Uuid
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @db.Uuid
+  readAt    DateTime @default(now())
+}
+
+model MessageMedia {
+  id        String   @id @default(uuid()) @db.Uuid
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String   @db.Uuid
+  type      String
+  url       String
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @db.Uuid
+  type      String
+  entityId  String?
+  message   String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Follow {
+  id          String   @id @default(uuid()) @db.Uuid
+  follower    User     @relation("Following", fields: [followerId], references: [id])
+  followerId  String   @db.Uuid
+  following   User     @relation("Followers", fields: [followingId], references: [id])
+  followingId String   @db.Uuid
+  createdAt   DateTime @default(now())
+  User        User?    @relation(fields: [userId], references: [id])
+  userId      String?  @db.Uuid
+
+  @@unique([followerId, followingId])
 }
